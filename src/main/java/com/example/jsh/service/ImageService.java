@@ -18,9 +18,15 @@ public class ImageService {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("빈 파일입니다.");
         }
+
+        String ct = file.getContentType();
+        if ("image/jpg".equalsIgnoreCase(ct)) {
+            ct = "image/jpeg";   // 표준으로 통일
+        }
+
         ImageFile entity = ImageFile.builder()
                 .fileName(file.getOriginalFilename())
-                .contentType(file.getContentType())
+                .contentType(ct)
                 .size(file.getSize())
                 .data(file.getBytes())        // 처리 없이 원본 바이트 그대로 저장
                 .createdT(Instant.now())
@@ -28,3 +34,4 @@ public class ImageService {
         return repo.save(entity);
     }
 }
+

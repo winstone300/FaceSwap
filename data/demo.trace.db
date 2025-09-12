@@ -1,0 +1,21 @@
+2025-09-11 19:10:05.906059+09:00 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "image_file" already exists; SQL statement:
+create table image_file (id varchar(255) not null, content_type varchar(255), createdt timestamp(6) with time zone, data blob, file_name varchar(255), size bigint not null, primary key (id)) [42101-232]
+2025-09-11 19:10:50.551264+09:00 jdbc[13]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statement "[*]DESCRIBE IMAGE_FILE"; expected "DELETE, DROP"; SQL statement:
+DESCRIBE IMAGE_FILE [42001-232]
+2025-09-11 19:11:06.983522+09:00 jdbc[13]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statement "show [*]IMAGE_FILE"; SQL statement:
+show IMAGE_FILE [42000-232]
+2025-09-11 19:11:26.345498+09:00 jdbc[13]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statement "[*]describe IMAGE_FILE"; expected "DELETE, DROP"; SQL statement:
+describe IMAGE_FILE [42001-232]
+2025-09-11 19:11:46.496685+09:00 jdbc[13]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statement "[*]DESCRIBE IMAGE_FILE"; expected "DELETE, DROP"; SQL statement:
+DESCRIBE IMAGE_FILE [42001-232]
+2025-09-12 16:12:16.982309+09:00 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "image_file" already exists; SQL statement:
+create table image_file (id varchar(255) not null, content_type varchar(255), createdt timestamp(6) with time zone, data blob, file_name varchar(255), size bigint not null, primary key (id)) [42101-232]
+2025-09-12 16:24:45.743474+09:00 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "image_file" already exists; SQL statement:
+create table image_file (id varchar(255) not null, content_type varchar(255), createdt timestamp(6) with time zone, data blob, file_name varchar(255), size bigint not null, primary key (id)) [42101-232]
