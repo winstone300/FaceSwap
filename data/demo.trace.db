@@ -19,3 +19,6 @@ create table image_file (id varchar(255) not null, content_type varchar(255), cr
 2025-09-12 16:24:45.743474+09:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "image_file" already exists; SQL statement:
 create table image_file (id varchar(255) not null, content_type varchar(255), createdt timestamp(6) with time zone, data blob, file_name varchar(255), size bigint not null, primary key (id)) [42101-232]
+2025-09-12 17:25:51.394028+09:00 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "image_file" already exists; SQL statement:
+create table image_file (id varchar(255) not null, content_type varchar(255), createdt timestamp(6) with time zone, data blob, file_name varchar(255), size bigint not null, primary key (id)) [42101-232]
