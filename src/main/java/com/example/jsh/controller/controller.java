@@ -3,6 +3,7 @@ package com.example.jsh.controller;
 import com.example.jsh.entity.ImageFile;
 import com.example.jsh.repository.ImageFileRepository;
 import com.example.jsh.service.ImageReadService;
+import com.example.jsh.service.ImageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Sort;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.awt.*;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +28,7 @@ public class controller {
 
     private final ImageFileRepository repo;
     private final ImageReadService imageReadService;
+    private final ImageService imageService;
 
     @GetMapping({"/", "/upload"})
     public String uploadForm() {
@@ -49,20 +52,7 @@ public class controller {
             return "redirect:/upload";
         }
 
-        int saved = 0;
-        for (MultipartFile f : all) {
-            ImageFile img = ImageFile.builder()
-                    // id는 @GeneratedValue(UUID) 이므로 건드리지 않음
-                    .fileName(StringUtils.cleanPath(Objects.requireNonNull(f.getOriginalFilename())))
-                    .contentType(f.getContentType())
-                    .size(f.getSize())
-                    .data(f.getBytes())        // BLOB
-                    .createdT(Instant.now())
-                    .build();
-            repo.save(img); // 저장 시 id 자동 생성
-            saved++;
-        }
-
+        int saved  = imageService.saveAll(all);
         ra.addFlashAttribute("message", saved + "개 파일 업로드 완료");
         return "redirect:/gallery";
     }
@@ -73,6 +63,19 @@ public class controller {
         List<ImageFile> images = repo.findAll(Sort.by(Sort.Direction.DESC, "createdT"));
         model.addAttribute("images", images);
         return "gallery"; // templates/gallery.html
+    }
+
+    @PostMapping("/gallery/delete")
+    @Transactional
+    public String deleteSelected(@RequestParam("ids") List<String> ids,
+                                 RedirectAttributes ra) {
+        if (ids == null || ids.isEmpty()) {
+            ra.addFlashAttribute("error", "삭제할 이미지를 선택하세요.");
+            return "redirect:/gallery";
+        }
+        repo.deleteAllByIdInBatch(ids); // 또는 repo.deleteAllById(ids);
+        ra.addFlashAttribute("message", ids.size() + "개 이미지 삭제 완료");
+        return "redirect:/gallery";
     }
 
     @GetMapping("/image/{id}")

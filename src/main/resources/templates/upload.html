@@ -2,36 +2,181 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="utf-8"/>
-    <title>이미지 업로드 (Thymeleaf)</title>
+    <title>이미지 업로드 (타일 미리보기)</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <style>
+        :root{--dash:#d1d5db;--muted:#6b7280;--tile:120px}
         body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px}
-        .card{max-width:720px;margin:0 auto;padding:24px;border:1px solid #e5e7eb;border-radius:12px}
-        .row{display:flex;gap:12px;align-items:center;margin-top:12px;flex-wrap:wrap}
-        .btn{cursor:pointer;border:0;background:#111827;color:#fff;padding:10px 16px;border-radius:8px}
-        .muted{color:#6b7280;font-size:14px}.msg{margin-top:10px}
-        .error{color:#b91c1c}.ok{color:#065f46}
+        .tray{border:2px dashed var(--dash);border-radius:18px;padding:10px;display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+        .tile{width:var(--tile);height:var(--tile);border-radius:12px;overflow:hidden;position:relative;background:#fff;border:1px solid #e5e7eb}
+        .tile img{width:100%;height:100%;object-fit:cover;display:block}
+        .badge{position:absolute;left:6px;bottom:6px;background:rgba(17,24,39,.85);color:#fff;border-radius:6px;padding:2px 6px;font-size:12px}
+        .remove{position:absolute;right:6px;top:6px;width:24px;height:24px;border-radius:999px;border:0;background:rgba(0,0,0,.55);color:#fff;cursor:pointer;line-height:24px}
+        .add{display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);border-style:dashed;border-color:#d1d5db;background:#fafafa;cursor:pointer;gap:6px}
+        .add svg{width:30px;height:30px}
+        .tray.hover{background:#f9fafb}
+        .row{display:flex;gap:10px;margin-top:14px;align-items:center;flex-wrap:wrap}
+        .btn{border:0;padding:10px 16px;border-radius:10px;color:#fff;background:#111827;cursor:pointer}
+        .btn:disabled{opacity:.6;cursor:not-allowed}
+        .note{color:#6b7280;font-size:14px}
+        .progress{height:8px;background:#f1f5f9;border-radius:999px;overflow:hidden;margin-top:10px}
+        .bar{height:100%;width:0%;background:#111827;transition:width .2s}
     </style>
 </head>
 <body>
-<div class="card">
-    <h1>이미지 업로드</h1>
-    <p class="muted">서버사이드 렌더링(Thymeleaf) — 업로드 후 갤러리로 이동합니다.</p>
+<h1 style="margin:0 0 12px 0;">이미지 업로드</h1>
+<div class="note" style="margin-bottom:10px;">이미지를 추가하면 왼쪽부터 순서대로 표시됩니다. (최대 10장)</div>
 
-    <div class="msg ok" th:if="${message}" th:text="${message}"></div>
-    <div class="msg error" th:if="${error}" th:text="${error}"></div>
-
-    <form th:action="@{/upload}" method="post" enctype="multipart/form-data" class="row">
-        <!-- 단일/다중 둘 다 노출: 컨트롤러가 둘 다 처리 -->
-        <input type="file" name="file" accept="image/*"/>
-        <input type="file" name="files" accept="image/*" multiple/>
-        <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-        <button class="btn" type="submit">업로드</button>
-    </form>
-
-    <p class="muted" style="margin-top:12px;">
-        목록 보기: <a th:href="@{/gallery}">/gallery</a>
-    </p>
+<!-- 드래그&드롭 + 타일 미리보기 -->
+<div id="tray" class="tray">
+    <!-- 썸네일 타일들이 JS로 여기에 추가됨 -->
+    <!-- Add 슬롯 -->
+    <label id="addTile" class="tile add" for="fileInput" title="이미지 추가">
+        <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 4v16M4 12h16" stroke="#9ca3af" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <div>Add</div>
+    </label>
+    <!-- 실제 파일 입력 (숨김) -->
+    <input id="fileInput" type="file" name="files" accept="image/*" multiple style="display:none"/>
 </div>
+
+<!-- 진행/버튼 -->
+<div class="progress"><div id="bar" class="bar"></div></div>
+<div class="row">
+    <button id="uploadBtn" class="btn">업로드</button>
+    <a th:href="@{/gallery}" class="btn" role="button" style="background:#334155">갤러리로 이동</a>
+    <span id="msg" class="note"></span>
+</div>
+
+<!-- CSRF (쓰는 경우에만 렌더링됨) -->
+<input type="hidden" id="csrfName"  th:if="${_csrf}" th:value="${_csrf.parameterName}"/>
+<input type="hidden" id="csrfToken" th:if="${_csrf}" th:value="${_csrf.token}"/>
+
+<script>
+    // ===== 설정 =====
+    const MAX = 10; // 최대 이미지 개수
+    const UPLOAD_URL = '/upload'; // 백엔드 업로드 엔드포인트
+
+    // ===== 상태 =====
+    let filesQueue = []; // { file: File, url: objectURL }
+
+    // ===== 엘리먼트 =====
+    const tray = document.getElementById('tray');
+    const addTile = document.getElementById('addTile');
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const bar = document.getElementById('bar');
+    const msg = document.getElementById('msg');
+
+    // 드래그&드롭
+    ;['dragenter','dragover'].forEach(evt=>{
+        tray.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); tray.classList.add('hover'); });
+    });
+    ;['dragleave','drop'].forEach(evt=>{
+        tray.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); tray.classList.remove('hover'); });
+    });
+    tray.addEventListener('drop', (e)=>{
+        const files = [...(e.dataTransfer.files||[])];
+        addFiles(files);
+    });
+
+    // 파일 선택
+    fileInput.addEventListener('change', () => addFiles([...fileInput.files]));
+
+    function addFiles(newFiles){
+        const imgs = newFiles.filter(f => f.type.startsWith('image/'));
+        const available = MAX - filesQueue.length;
+        if (available <= 0) { notify(`최대 ${MAX}장까지 가능합니다.`); return; }
+        const picked = imgs.slice(0, available);
+
+        picked.forEach(f => {
+            const url = URL.createObjectURL(f);
+            filesQueue.push({file: f, url});
+        });
+        renderTiles();
+        // input 값 초기화(같은 파일 다시 선택 가능하게)
+        fileInput.value = '';
+    }
+
+    function renderTiles(){
+        // 기존 썸네일 타일 제거 (Add 타일은 유지)
+        [...tray.querySelectorAll('.tile.thumb')].forEach(el => el.remove());
+
+        // 새로 그리기 (왼→오)
+        filesQueue.forEach((entry, idx) => {
+            const tile = document.createElement('div');
+            tile.className = 'tile thumb';
+
+            const img = document.createElement('img');
+            img.src = entry.url; img.alt = entry.file.name;
+
+            const badge = document.createElement('div');
+            badge.className = 'badge';
+            badge.textContent = (idx + 1).toString();
+
+            const rm = document.createElement('button');
+            rm.className = 'remove'; rm.type = 'button'; rm.textContent = '×';
+            rm.title = '제거';
+            rm.addEventListener('click', () => {
+                // 자원 해제
+                URL.revokeObjectURL(entry.url);
+                filesQueue.splice(idx, 1);
+                renderTiles();
+            });
+
+            tile.appendChild(img);
+            tile.appendChild(badge);
+            tile.appendChild(rm);
+
+            // Add 타일 앞쪽에 계속 붙이기
+            tray.insertBefore(tile, addTile);
+        });
+
+        // Add 타일 표시/숨김 (가득 찼으면 숨김)
+        addTile.style.display = filesQueue.length >= MAX ? 'none' : '';
+    }
+
+    // 업로드
+    uploadBtn.addEventListener('click', () => {
+        if (filesQueue.length === 0) return notify('업로드할 이미지가 없습니다.');
+        upload();
+    });
+
+    function upload(){
+        setProgress(0); setBusy(true); notify('');
+        const fd = new FormData();
+        filesQueue.forEach(({file}) => fd.append('files', file)); // @RequestParam("files")
+
+        // CSRF (있는 경우만)
+        const csrfName = document.getElementById('csrfName')?.value;
+        const csrfToken = document.getElementById('csrfToken')?.value;
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', UPLOAD_URL, true);
+        if (csrfName && csrfToken) xhr.setRequestHeader(csrfName, csrfToken);
+        // Content-Type은 설정하지 마세요. (FormData가 boundary 자동 설정)
+
+        xhr.upload.onprogress = e => { if (e.lengthComputable) setProgress(Math.round(e.loaded/e.total*100)); };
+        xhr.onreadystatechange = () => {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return;
+            setBusy(false);
+            if (xhr.status>=200 && xhr.status<300){
+                setProgress(100);
+                notify('업로드 성공! 갤러리로 이동합니다.');
+                setTimeout(()=> location.href='/gallery', 350);
+            } else {
+                setProgress(0);
+                notify(`업로드 실패 (HTTP ${xhr.status}) ${xhr.responseText||''}`);
+            }
+        };
+        xhr.onerror = () => { setBusy(false); setProgress(0); notify('네트워크 오류'); };
+        xhr.send(fd);
+    }
+
+    function setBusy(b){ uploadBtn.disabled = b; addTile.style.pointerEvents = b ? 'none' : 'auto'; }
+    function setProgress(p){ bar.style.width = (p||0) + '%'; }
+    function notify(t){ msg.textContent = t; }
+</script>
 </body>
 </html>

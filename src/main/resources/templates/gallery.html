@@ -8,17 +8,40 @@
         body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px}
         .card{max-width:960px;margin:0 auto;padding:24px}
         .muted{color:#6b7280;font-size:14px}
+        .toolbar{display:flex;gap:12px;align-items:center;margin:8px 0 12px 0;flex-wrap:wrap}
+        .btn{border:0;border-radius:10px;padding:8px 12px;color:#fff;background:#111827;cursor:pointer}
+        .btn:disabled{opacity:.6;cursor:not-allowed}
+        .btn-outline{background:#334155}
         .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;margin-top:16px}
-        .item{border:1px solid #e5e7eb;border-radius:12px;padding:12px}
+        .item{position:relative;border:1px solid #e5e7eb;border-radius:12px;padding:12px}
         .item img{width:100%;height:160px;object-fit:cover;border-radius:8px}
         .meta{font-size:13px;color:#374151;margin-top:6px;line-height:1.4;word-break:break-all}
+        /* 체크박스 오버레이 */
+        .sel{position:absolute;left:12px;top:12px;background:rgba(255,255,255,.9);border-radius:8px;padding:4px}
         .msg{margin-top:10px}.error{color:#b91c1c}.ok{color:#065f46}
     </style>
 </head>
 <body>
 <div class="card">
     <h1>이미지 갤러리</h1>
-    <p class="muted"><a th:href="@{/upload}">업로드 페이지</a></p>
+
+    <!-- 상단 툴바 -->
+    <div class="toolbar">
+        <a th:href="@{/upload}" class="btn btn-outline" role="button">업로드 페이지</a>
+
+        <!-- 삭제 폼(선택된 ids를 담아 전송) -->
+        <form id="delForm" th:action="@{/gallery/delete}" method="post" style="display:flex;gap:8px;align-items:center;">
+            <!-- CSRF -->
+            <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <!-- 선택된 id가 JS로 여기 추가됨 -->
+            <span class="muted">선택: <span id="selCount">0</span>개</span>
+            <button id="delBtn" class="btn" type="submit" disabled>선택 삭제</button>
+        </form>
+
+        <label class="muted" style="display:flex;gap:6px;align-items:center;">
+            <input type="checkbox" id="checkAll"> 전체 선택
+        </label>
+    </div>
 
     <div class="msg ok" th:if="${message}" th:text="${message}"></div>
     <div class="msg error" th:if="${error}" th:text="${error}"></div>
@@ -27,8 +50,13 @@
         등록된 이미지가 없습니다. <a th:href="@{/upload}">이미지 업로드</a>
     </div>
 
-    <div th:if="${!#lists.isEmpty(images)}" class="grid">
+    <div th:if="${!#lists.isEmpty(images)}" class="grid" id="grid">
         <div class="item" th:each="img : ${images}">
+            <!-- 체크박스(카드 왼쪽 위) -->
+            <label class="sel">
+                <input type="checkbox" name="chk" th:data-id="${img.id}">
+            </label>
+
             <a th:href="@{/image/{id}(id=${img.id})}" target="_blank">
                 <img th:src="@{/image/{id}(id=${img.id})}" th:alt="${img.fileName}"/>
             </a>
@@ -45,5 +73,55 @@
         </div>
     </div>
 </div>
+
+<script>
+    const grid = document.getElementById('grid');
+    const delForm = document.getElementById('delForm');
+    const delBtn = document.getElementById('delBtn');
+    const selCount = document.getElementById('selCount');
+    const checkAll = document.getElementById('checkAll');
+
+    function getCheckedIds(){
+        return Array.from(document.querySelectorAll('input[type="checkbox"][name="chk"]:checked'))
+            .map(cb => cb.dataset.id);
+    }
+
+    function refreshState(){
+        const ids = getCheckedIds();
+        selCount.textContent = ids.length;
+        delBtn.disabled = ids.length === 0;
+        // 전체선택 체크 상태 동기화
+        const all = document.querySelectorAll('input[name="chk"]').length;
+        checkAll.checked = (ids.length > 0 && ids.length === all);
+        checkAll.indeterminate = (ids.length > 0 && ids.length < all);
+    }
+
+    // 카드 체크 변화
+    document.addEventListener('change', (e)=>{
+        if (e.target.matches('input[name="chk"]')) refreshState();
+    });
+
+    // 전체 선택/해제
+    checkAll.addEventListener('change', ()=>{
+        document.querySelectorAll('input[name="chk"]').forEach(cb => cb.checked = checkAll.checked);
+        refreshState();
+    });
+
+    // 삭제 제출 시, 선택된 id들을 hidden input으로 만들어 폼에 삽입
+    delForm.addEventListener('submit', (e)=>{
+        const ids = getCheckedIds();
+        if (ids.length === 0) { e.preventDefault(); return; }
+        // 기존 hidden 제거
+        delForm.querySelectorAll('input[type="hidden"][name="ids"]').forEach(n=>n.remove());
+        // ids[]=... 형태로 전송하고 싶다면 name="ids[]"로
+        ids.forEach(id => {
+            const h = document.createElement('input');
+            h.type = 'hidden';
+            h.name = 'ids';      // 컨트롤러에서 @RequestParam List<String> ids 로 받음
+            h.value = id;
+            delForm.appendChild(h);
+        });
+    });
+</script>
 </body>
 </html>

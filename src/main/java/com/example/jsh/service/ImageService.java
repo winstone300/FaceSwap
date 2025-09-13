@@ -2,36 +2,48 @@ package com.example.jsh.service;
 
 import com.example.jsh.entity.ImageFile;
 import com.example.jsh.repository.ImageFileRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 public class ImageService {
     private final ImageFileRepository repo;
 
-    public ImageFile saveRaw(MultipartFile file) throws IOException {
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("빈 파일입니다.");
-        }
+    @Transactional
+    public int saveAll(List<MultipartFile> files) throws Exception {
+        if (files == null || files.isEmpty()) return 0;
 
-        String ct = file.getContentType();
-        if ("image/jpg".equalsIgnoreCase(ct)) {
-            ct = "image/jpeg";   // 표준으로 통일
-        }
+        int saved = 0;
+        for (MultipartFile f : files) {
+            if (f == null || f.isEmpty() || !isAllowedContentType(f.getContentType())) continue;
 
-        ImageFile entity = ImageFile.builder()
-                .fileName(file.getOriginalFilename())
-                .contentType(ct)
-                .size(file.getSize())
-                .data(file.getBytes())        // 처리 없이 원본 바이트 그대로 저장
-                .createdT(Instant.now())
-                .build();
-        return repo.save(entity);
+            ImageFile img = ImageFile.builder()
+                    .fileName(StringUtils.cleanPath(Objects.requireNonNull(f.getOriginalFilename())))
+                    .contentType(f.getContentType())
+                    .size(f.getSize())
+                    .data(f.getBytes())      // BLOB
+                    .createdT(Instant.now())
+                    .build();
+
+            repo.save(img);
+            saved++;
+        }
+        return saved;
+    }
+
+
+    private boolean isAllowedContentType(String ct) {
+        if (ct == null) return false;
+        return ct.startsWith("image/");   // 필요하면 화이트리스트로 강화: jpeg, png, webp 등
     }
 }
 
