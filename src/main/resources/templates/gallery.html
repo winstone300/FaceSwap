@@ -13,12 +13,26 @@
         .btn:disabled{opacity:.6;cursor:not-allowed}
         .btn-outline{background:#334155}
         .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;margin-top:16px}
-        .item{position:relative;border:1px solid #e5e7eb;border-radius:12px;padding:12px}
-        .item img{width:100%;height:160px;object-fit:cover;border-radius:8px}
+        .item{position:relative;border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:#fff}
+        .thumb{display:block}
+        .item img{width:100%;height:160px;object-fit:cover;border-radius:8px;background:#f3f4f6}
         .meta{font-size:13px;color:#374151;margin-top:6px;line-height:1.4;word-break:break-all}
         /* 체크박스 오버레이 */
         .sel{position:absolute;left:12px;top:12px;background:rgba(255,255,255,.9);border-radius:8px;padding:4px}
-        .msg{margin-top:10px}.error{color:#b91c1c}.ok{color:#065f46}
+
+        /* ===== 라이트박스(모달) ===== */
+        .viewer{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;z-index:50}
+        .viewer.open{display:flex}
+        .viewer-inner{max-width:min(96vw,1200px);max-height:90vh;position:relative;display:flex;flex-direction:column;gap:10px}
+        .viewer-img{max-width:100%;max-height:78vh;object-fit:contain;border-radius:10px;background:#0b0f19}
+        .viewer-top{display:flex;justify-content:space-between;align-items:center;color:#e5e7eb;font-size:14px}
+        .viewer-actions{display:flex;gap:8px}
+        .viewer-btn{border:1px solid #374151;background:#111827;color:#e5e7eb;border-radius:8px;padding:6px 10px;cursor:pointer}
+        .nav{position:absolute;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;
+            width:44px;height:44px;border-radius:999px;background:rgba(0,0,0,.5);color:#fff;border:1px solid rgba(255,255,255,.2);cursor:pointer}
+        .nav.prev{left:-56px}
+        .nav.next{right:-56px}
+        @media (max-width: 780px){ .nav{display:none} }
     </style>
 </head>
 <body>
@@ -51,15 +65,23 @@
     </div>
 
     <div th:if="${!#lists.isEmpty(images)}" class="grid" id="grid">
-        <div class="item" th:each="img : ${images}">
+        <div class="item" th:each="img, stat : ${images}"
+             th:data-id="${img.id}"
+             th:data-name="${img.fileName}"
+             th:data-url ="@{/image/{id}(id=${img.id})}">
             <!-- 체크박스(카드 왼쪽 위) -->
-            <label class="sel">
+            <label class="sel" title="선택">
                 <input type="checkbox" name="chk" th:data-id="${img.id}">
             </label>
 
-            <a th:href="@{/image/{id}(id=${img.id})}" target="_blank">
-                <img th:src="@{/image/{id}(id=${img.id})}" th:alt="${img.fileName}"/>
+            <!-- 썸네일(클릭하면 모달 열기) -->
+            <a class="thumb" th:href="@{/image/{id}(id=${img.id})}" target="_blank" th:title="${img.fileName}">
+                <img th:src="@{/image/{id}(id=${img.id})}"
+                     th:alt="${img.fileName}"
+                     loading="lazy" decoding="async"
+                     onerror="this.style.opacity='0.3';this.alt='로드 실패';">
             </a>
+
             <div class="meta">
                 <div><b>ID:</b> <span th:text="${img.id}"></span></div>
                 <div><b>파일명:</b> <span th:text="${img.fileName}"></span></div>
@@ -74,6 +96,25 @@
     </div>
 </div>
 
+<!-- ===== 라이트박스(모달) ===== -->
+<div id="viewer" class="viewer" aria-hidden="true">
+    <div class="viewer-inner">
+        <div class="viewer-top">
+            <div id="cap"></div>
+            <div class="viewer-actions">
+                <a id="openRaw" class="viewer-btn" href="#" target="_blank" rel="noopener">새 탭에서 열기</a>
+                <a id="dl" class="viewer-btn" href="#" download>다운로드</a>
+                <button id="close" class="viewer-btn" type="button">닫기(ESC)</button>
+            </div>
+        </div>
+        <div style="position:relative">
+            <button class="nav prev" id="prev" type="button" title="이전">‹</button>
+            <img id="big" class="viewer-img" alt="미리보기">
+            <button class="nav next" id="next" type="button" title="다음">›</button>
+        </div>
+    </div>
+</div>
+
 <script>
     const grid = document.getElementById('grid');
     const delForm = document.getElementById('delForm');
@@ -81,47 +122,104 @@
     const selCount = document.getElementById('selCount');
     const checkAll = document.getElementById('checkAll');
 
+    // === 선택/삭제 관련 ===
     function getCheckedIds(){
         return Array.from(document.querySelectorAll('input[type="checkbox"][name="chk"]:checked'))
             .map(cb => cb.dataset.id);
     }
-
     function refreshState(){
         const ids = getCheckedIds();
         selCount.textContent = ids.length;
         delBtn.disabled = ids.length === 0;
-        // 전체선택 체크 상태 동기화
         const all = document.querySelectorAll('input[name="chk"]').length;
         checkAll.checked = (ids.length > 0 && ids.length === all);
         checkAll.indeterminate = (ids.length > 0 && ids.length < all);
     }
-
-    // 카드 체크 변화
     document.addEventListener('change', (e)=>{
         if (e.target.matches('input[name="chk"]')) refreshState();
     });
-
-    // 전체 선택/해제
     checkAll.addEventListener('change', ()=>{
         document.querySelectorAll('input[name="chk"]').forEach(cb => cb.checked = checkAll.checked);
         refreshState();
     });
-
-    // 삭제 제출 시, 선택된 id들을 hidden input으로 만들어 폼에 삽입
     delForm.addEventListener('submit', (e)=>{
         const ids = getCheckedIds();
         if (ids.length === 0) { e.preventDefault(); return; }
-        // 기존 hidden 제거
         delForm.querySelectorAll('input[type="hidden"][name="ids"]').forEach(n=>n.remove());
-        // ids[]=... 형태로 전송하고 싶다면 name="ids[]"로
         ids.forEach(id => {
             const h = document.createElement('input');
-            h.type = 'hidden';
-            h.name = 'ids';      // 컨트롤러에서 @RequestParam List<String> ids 로 받음
-            h.value = id;
+            h.type = 'hidden'; h.name = 'ids'; h.value = id;
             delForm.appendChild(h);
         });
     });
+
+    // === 라이트박스(모달) ===
+    const viewer = document.getElementById('viewer');
+    const big = document.getElementById('big');
+    const cap = document.getElementById('cap');
+    const openRaw = document.getElementById('openRaw');
+    const dl = document.getElementById('dl');
+    const btnClose = document.getElementById('close');
+    const btnPrev = document.getElementById('prev');
+    const btnNext = document.getElementById('next');
+
+    // DOM에서 아이템 목록 수집
+    const items = grid ? Array.from(grid.querySelectorAll('.item')).map(el => ({
+        id: el.dataset.id,
+        name: el.dataset.name,
+        url: el.dataset.url,
+        el
+    })) : [];
+    let idx = -1;
+
+    function openAt(i){
+        if (i < 0 || i >= items.length) return;
+        idx = i;
+        const it = items[idx];
+        big.src = it.url;
+        big.alt = it.name || it.id;
+        cap.textContent = `${idx+1}/${items.length} · ${it.name || it.id}`;
+        openRaw.href = it.url;
+        dl.href = it.url; // 서버가 Content-Disposition을 설정하지 않아도 브라우저가 시도
+        viewer.classList.add('open');
+        viewer.setAttribute('aria-hidden', 'false');
+    }
+    function close(){
+        viewer.classList.remove('open');
+        viewer.setAttribute('aria-hidden', 'true');
+        big.src = ''; // 모바일 메모리 절약
+    }
+    function prev(){ if (idx > 0) openAt(idx-1); }
+    function next(){ if (idx < items.length-1) openAt(idx+1); }
+
+    // 썸네일 클릭 → 모달
+    document.addEventListener('click', (e)=>{
+        // 체크박스 라벨 클릭은 무시
+        if (e.target.closest('.sel')) return;
+
+        const a = e.target.closest('a.thumb');
+        if (!a) return;
+        // 새 탭 열기가 기본이지만, 모달로 보여주려면 아래 두 줄:
+        e.preventDefault(); e.stopPropagation();
+        const card = a.closest('.item');
+        const i = items.findIndex(x => x.el === card);
+        openAt(i);
+    });
+
+    // 모달 조작
+    btnClose.addEventListener('click', close);
+    btnPrev.addEventListener('click', prev);
+    btnNext.addEventListener('click', next);
+    viewer.addEventListener('click', (e)=>{ if (e.target === viewer) close(); });
+    document.addEventListener('keydown', (e)=>{
+        if (!viewer.classList.contains('open')) return;
+        if (e.key === 'Escape') close();
+        if (e.key === 'ArrowLeft') prev();
+        if (e.key === 'ArrowRight') next();
+    });
+
+    // 초기 상태 동기화
+    refreshState();
 </script>
 </body>
 </html>

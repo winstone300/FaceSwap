@@ -50,7 +50,7 @@
 </div>
 
 <!-- CSRF (쓰는 경우에만 렌더링됨) -->
-<input type="hidden" id="csrfName"  th:if="${_csrf}" th:value="${_csrf.parameterName}"/>
+<input type="hidden" id="csrfName"  th:if="${_csrf}" th:value="${_csrf.headerName}"/>
 <input type="hidden" id="csrfToken" th:if="${_csrf}" th:value="${_csrf.token}"/>
 
 <script>
