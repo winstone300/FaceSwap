@@ -37,7 +37,13 @@ public class SecurityConfig {
                         .failureUrl("/login?error")
                         .permitAll()
                 )
-                .logout(lo -> lo.logoutUrl("/logout").logoutSuccessUrl("/login?logout").permitAll())
+                .logout(logout -> logout
+                        .logoutUrl("/logout")             // 기본값도 /logout (POST)
+                        .logoutSuccessUrl("/login?logout")// 성공 후 이동
+                        .invalidateHttpSession(true)      // 세션 무효화
+                        .deleteCookies("JSESSIONID")      // 세션 쿠키 삭제
+                        .clearAuthentication(true)
+                )
                 .headers(h -> h.frameOptions(f -> f.sameOrigin()));
         return http.build();
     }

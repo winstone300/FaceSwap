@@ -8,19 +8,23 @@
         body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px}
         .card{max-width:960px;margin:0 auto;padding:24px}
         .muted{color:#6b7280;font-size:14px}
-        .toolbar{display:flex;gap:12px;align-items:center;margin:8px 0 12px 0;flex-wrap:wrap}
         .btn{border:0;border-radius:10px;padding:8px 12px;color:#fff;background:#111827;cursor:pointer}
         .btn:disabled{opacity:.6;cursor:not-allowed}
         .btn-outline{background:#334155}
+
+        /* 상단바: 제목(좌) / 사용자·로그아웃(우) */
+        .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px 0;flex-wrap:wrap}
+        .topbar .right{display:flex;align-items:center;gap:10px}
+
+        .toolbar{display:flex;gap:12px;align-items:center;margin:8px 0 12px 0;flex-wrap:wrap}
         .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;margin-top:16px}
         .item{position:relative;border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:#fff}
         .thumb{display:block}
         .item img{width:100%;height:160px;object-fit:cover;border-radius:8px;background:#f3f4f6}
         .meta{font-size:13px;color:#374151;margin-top:6px;line-height:1.4;word-break:break-all}
-        /* 체크박스 오버레이 */
         .sel{position:absolute;left:12px;top:12px;background:rgba(255,255,255,.9);border-radius:8px;padding:4px}
 
-        /* ===== 라이트박스(모달) ===== */
+        /* 라이트박스(모달) */
         .viewer{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;z-index:50}
         .viewer.open{display:flex}
         .viewer-inner{max-width:min(96vw,1200px);max-height:90vh;position:relative;display:flex;flex-direction:column;gap:10px}
@@ -37,17 +41,25 @@
 </head>
 <body>
 <div class="card">
-    <h1>이미지 갤러리</h1>
+    <!-- 상단바: 제목 좌 / 사용자명+로그아웃 우 -->
+    <div class="topbar">
+        <h1 style="margin:0;">이미지 갤러리</h1>
+        <div class="right">
+            <span class="muted">[[${#httpServletRequest.remoteUser}]] 님</span>
+            <form th:action="@{/logout}" method="post" style="display:inline;">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                <button class="btn btn-outline" type="submit">로그아웃</button>
+            </form>
+        </div>
+    </div>
 
     <!-- 상단 툴바 -->
     <div class="toolbar">
         <a th:href="@{/upload}" class="btn btn-outline" role="button">업로드 페이지</a>
 
-        <!-- 삭제 폼(선택된 ids를 담아 전송) -->
+        <!-- 삭제 폼(선택된 ids 전송) -->
         <form id="delForm" th:action="@{/gallery/delete}" method="post" style="display:flex;gap:8px;align-items:center;">
-            <!-- CSRF -->
             <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <!-- 선택된 id가 JS로 여기 추가됨 -->
             <span class="muted">선택: <span id="selCount">0</span>개</span>
             <button id="delBtn" class="btn" type="submit" disabled>선택 삭제</button>
         </form>
@@ -68,15 +80,15 @@
         <div class="item" th:each="img, stat : ${images}"
              th:data-id="${img.id}"
              th:data-name="${img.fileName}"
-             th:data-url ="@{/image/{id}(id=${img.id})}">
-            <!-- 체크박스(카드 왼쪽 위) -->
+             th:data-url ="@{/images/{id}(id=${img.id})}">
+            <!-- 체크박스 -->
             <label class="sel" title="선택">
                 <input type="checkbox" name="chk" th:data-id="${img.id}">
             </label>
 
-            <!-- 썸네일(클릭하면 모달 열기) -->
-            <a class="thumb" th:href="@{/image/{id}(id=${img.id})}" target="_blank" th:title="${img.fileName}">
-                <img th:src="@{/image/{id}(id=${img.id})}"
+            <!-- 썸네일 -->
+            <a class="thumb" th:href="@{/images/{id}(id=${img.id})}" target="_blank" th:title="${img.fileName}">
+                <img th:src="@{/images/{id}(id=${img.id})}"
                      th:alt="${img.fileName}"
                      loading="lazy" decoding="async"
                      onerror="this.style.opacity='0.3';this.alt='로드 실패';">
@@ -96,7 +108,7 @@
     </div>
 </div>
 
-<!-- ===== 라이트박스(모달) ===== -->
+<!-- 라이트박스(모달) -->
 <div id="viewer" class="viewer" aria-hidden="true">
     <div class="viewer-inner">
         <div class="viewer-top">
@@ -122,7 +134,7 @@
     const selCount = document.getElementById('selCount');
     const checkAll = document.getElementById('checkAll');
 
-    // === 선택/삭제 관련 ===
+    // 선택/삭제
     function getCheckedIds(){
         return Array.from(document.querySelectorAll('input[type="checkbox"][name="chk"]:checked'))
             .map(cb => cb.dataset.id);
@@ -153,7 +165,7 @@
         });
     });
 
-    // === 라이트박스(모달) ===
+    // 라이트박스
     const viewer = document.getElementById('viewer');
     const big = document.getElementById('big');
     const cap = document.getElementById('cap');
@@ -163,7 +175,6 @@
     const btnPrev = document.getElementById('prev');
     const btnNext = document.getElementById('next');
 
-    // DOM에서 아이템 목록 수집
     const items = grid ? Array.from(grid.querySelectorAll('.item')).map(el => ({
         id: el.dataset.id,
         name: el.dataset.name,
@@ -180,33 +191,28 @@
         big.alt = it.name || it.id;
         cap.textContent = `${idx+1}/${items.length} · ${it.name || it.id}`;
         openRaw.href = it.url;
-        dl.href = it.url; // 서버가 Content-Disposition을 설정하지 않아도 브라우저가 시도
+        dl.href = it.url;
         viewer.classList.add('open');
         viewer.setAttribute('aria-hidden', 'false');
     }
     function close(){
         viewer.classList.remove('open');
         viewer.setAttribute('aria-hidden', 'true');
-        big.src = ''; // 모바일 메모리 절약
+        big.src = '';
     }
     function prev(){ if (idx > 0) openAt(idx-1); }
     function next(){ if (idx < items.length-1) openAt(idx+1); }
 
-    // 썸네일 클릭 → 모달
     document.addEventListener('click', (e)=>{
-        // 체크박스 라벨 클릭은 무시
         if (e.target.closest('.sel')) return;
-
         const a = e.target.closest('a.thumb');
         if (!a) return;
-        // 새 탭 열기가 기본이지만, 모달로 보여주려면 아래 두 줄:
         e.preventDefault(); e.stopPropagation();
         const card = a.closest('.item');
         const i = items.findIndex(x => x.el === card);
         openAt(i);
     });
 
-    // 모달 조작
     btnClose.addEventListener('click', close);
     btnPrev.addEventListener('click', prev);
     btnNext.addEventListener('click', next);
@@ -218,7 +224,6 @@
         if (e.key === 'ArrowRight') next();
     });
 
-    // 초기 상태 동기화
     refreshState();
 </script>
 </body>
