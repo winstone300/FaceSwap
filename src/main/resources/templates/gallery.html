@@ -68,15 +68,15 @@
         <div class="item" th:each="img, stat : ${images}"
              th:data-id="${img.id}"
              th:data-name="${img.fileName}"
-             th:data-url ="@{/image/{id}(id=${img.id})}">
+             th:data-url ="@{/images/{id}(id=${img.id})}">
             <!-- 체크박스(카드 왼쪽 위) -->
             <label class="sel" title="선택">
                 <input type="checkbox" name="chk" th:data-id="${img.id}">
             </label>
 
             <!-- 썸네일(클릭하면 모달 열기) -->
-            <a class="thumb" th:href="@{/image/{id}(id=${img.id})}" target="_blank" th:title="${img.fileName}">
-                <img th:src="@{/image/{id}(id=${img.id})}"
+            <a class="thumb" th:href="@{/images/{id}(id=${img.id})}" target="_blank" th:title="${img.fileName}">
+                <img th:src="@{/images/{id}(id=${img.id})}"
                      th:alt="${img.fileName}"
                      loading="lazy" decoding="async"
                      onerror="this.style.opacity='0.3';this.alt='로드 실패';">
