@@ -199,15 +199,12 @@
         if (!faceFile){ notify('Face 이미지는 필수입니다.'); return; }
 
         const fd = new FormData();
-        // 백엔드 시그니처: face(리스트) + fap=1 + eyes/nose/mouth
-        fd.append('face', faceFile);  // 첫 번째 파일을 target으로
+        // 백엔드 시그니처: files(리스트) + fap=1 + eyes/nose/mouth
+        fd.append('files', faceFile);  // 첫 번째 파일을 target으로
         fd.append('fap','1');
         if (eyesFile)  fd.append('eyes', eyesFile);
-        else fd.append('eyes',faceFile);
         if (noseFile)  fd.append('nose', noseFile);
-        else fd.append('eyes',faceFile);
         if (mouthFile) fd.append('mouth',mouthFile);
-        else fd.append('eyes',faceFile);
         fd.append('parts','eyes,nose,mouth');
         fd.append('steps','50');
         fd.append('guidance','7.5');
@@ -243,7 +240,7 @@
                 notify(`업로드 실패 (HTTP ${xhr.status}) ${xhr.responseText||''}`);
             }
         };
-        xhr.onerror = () => { setBusy(false); setProgress(0); notixfy('네트워크 오류'); };
+        xhr.onerror = () => { setBusy(false); setProgress(0); notify('네트워크 오류'); };
 
         setBusy(true); setProgress(0); notify('');
         xhr.send(fd);

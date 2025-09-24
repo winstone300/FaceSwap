@@ -24,7 +24,7 @@ public class SecurityConfig {
                         "/h2-console/**", "/gallery/upload", "/gallery/delete"
                 ))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/", "/login", "/error", "/favicon.ico", "/h2-console/**").permitAll()
+                        .requestMatchers("/", "/login", "/error", "/favicon.ico", "/h2-console/**","/fap/**").permitAll()
                         .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
                         .requestMatchers(HttpMethod.GET, "/images/**").permitAll()
                         .anyRequest().authenticated()
