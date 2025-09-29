@@ -205,9 +205,9 @@
         if (eyesFile)  fd.append('eyes', eyesFile);
         else fd.append('eyes',faceFile);
         if (noseFile)  fd.append('nose', noseFile);
-        else fd.append('eyes',faceFile);
+        else fd.append('nose',faceFile);
         if (mouthFile) fd.append('mouth',mouthFile);
-        else fd.append('eyes',faceFile);
+        else fd.append('mouth',faceFile);
         fd.append('parts','eyes,nose,mouth');
         fd.append('steps','50');
         fd.append('guidance','7.5');
@@ -243,7 +243,7 @@
                 notify(`업로드 실패 (HTTP ${xhr.status}) ${xhr.responseText||''}`);
             }
         };
-        xhr.onerror = () => { setBusy(false); setProgress(0); notixfy('네트워크 오류'); };
+        xhr.onerror = () => { setBusy(false); setProgress(0); notify('네트워크 오류'); };
 
         setBusy(true); setProgress(0); notify('');
         xhr.send(fd);

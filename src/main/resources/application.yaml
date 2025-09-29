@@ -24,3 +24,9 @@ spring:
 server:
   error:
     include-message: always
+
+fap:
+  http:
+    base-url: http://localhost:8081       # FastAPI 주소
+    connect-timeout: 5s
+    read-timeout: 120s
