@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -21,7 +22,12 @@ public class FuseAnyPartClient {
     public Path infer(MultipartFile target, MultipartFile eyes, MultipartFile nose, MultipartFile mouth,
                       String parts, int steps, double guidance) throws Exception {
 
-        var url = props.getBaseUrl() + "/infer";    //FastAPI에 보낼 url
+        var baseUrl = props.getHttp().getBaseUrl();
+        if (!StringUtils.hasText(baseUrl)) {
+            throw new IllegalStateException("FastAPI 서버 주소가 설정되지 않았습니다. (fap.http.base-url)");
+        }
+
+        var url = baseUrl + "/infer";    //FastAPI에 보낼 url
         var body = new LinkedMultiValueMap<String, Object>();
         body.add("target", new InMemoryMultipart("target.png", target));
         if (eyes != null && !eyes.isEmpty())  body.add("eyes",  new InMemoryMultipart("eyes.png", eyes));

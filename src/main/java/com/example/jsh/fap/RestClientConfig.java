@@ -18,12 +18,16 @@ public class RestClientConfig {
 
     @Bean
     public RestTemplate fapRestTemplate() {
-        Timeout t = Timeout.ofSeconds(props.getTimeoutSec()); // Timeout 가져옴
+        var http = props.getHttp();
+
+        Timeout connectTimeout = Timeout.of(http.getConnectTimeout());
+        Timeout readTimeout = Timeout.of(http.getReadTimeout());
+        Timeout leaseTimeout = Timeout.of(http.getConnectionRequestTimeout());
 
         RequestConfig rc = RequestConfig.custom()
-                .setConnectTimeout(t)               // Timeout
-                .setResponseTimeout(t)              // Timeout
-                .setConnectionRequestTimeout(t)     // 커넥션 풀 대기 시간
+                .setConnectTimeout(connectTimeout)
+                .setResponseTimeout(readTimeout)
+                .setConnectionRequestTimeout(leaseTimeout)
                 .build();
 
         //Apache HttpClient customizing
@@ -32,14 +36,16 @@ public class RestClientConfig {
                 .build();
 
         //RestTemplate이 Apache HttpClient를 내부적으로 사용하도록 연결
-        HttpComponentsClientHttpRequestFactory f =
+        HttpComponentsClientHttpRequestFactory factory =
                 new HttpComponentsClientHttpRequestFactory(client);
+        factory.setConnectTimeout(http.getConnectTimeout());
+        factory.setReadTimeout(http.getReadTimeout());
 
         // (선택) Spring 팩토리에도 한 번 더 설정하고 싶다면 Duration로:
         // import java.time.Duration;
         // f.setConnectTimeout(Duration.ofSeconds(props.getTimeoutSec()));
         // f.setReadTimeout(Duration.ofSeconds(props.getTimeoutSec()));
 
-        return new RestTemplate(f);
+        return new RestTemplate(factory);
     }
 }

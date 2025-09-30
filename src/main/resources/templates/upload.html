@@ -240,10 +240,16 @@
                 location.href = '/gallery';
             } else {
                 setProgress(0);
-                notify(`업로드 실패 (HTTP ${xhr.status}) ${xhr.responseText||''}`);
+                const res = xhr.response || {};
+                const detail = res.error || res.message || (typeof xhr.responseText === 'string' ? xhr.responseText : '') || `HTTP ${xhr.status}`;
+                notify(`업로드 실패: ${detail}`);
             }
         };
-        xhr.onerror = () => { setBusy(false); setProgress(0); notify('네트워크 오류'); };
+        xhr.onerror = () => {
+            setBusy(false);
+            setProgress(0);
+            notify('네트워크 오류: FastAPI 서버가 실행 중인지 확인하세요.');
+        };
 
         setBusy(true); setProgress(0); notify('');
         xhr.send(fd);

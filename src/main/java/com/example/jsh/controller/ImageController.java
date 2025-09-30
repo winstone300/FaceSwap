@@ -62,8 +62,9 @@ public class ImageController {
             @RequestParam(value="mouth", required=false) MultipartFile mouth,
             @RequestParam(value="steps", defaultValue="50") int steps,
             @RequestParam(value="guidance", defaultValue="7.5") double guidance,
-            @AuthenticationPrincipal(expression = "principal") UserAccount me
+            @AuthenticationPrincipal User principal
     ) {
+        var owner = me(principal);
         if (face == null || face.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of(
                     "ok", false, "error", "Face 이미지가 필요합니다."
@@ -74,7 +75,7 @@ public class ImageController {
         Path result = null;
         try {
             result = fapClient.infer(face, eyes, nose, mouth, parts, steps, guidance);
-            var save = imageWriteService.saveResultPng(me, result, "fap-result.png");
+            var save = imageWriteService.saveResultPng(owner, result, "fap-result.png");
             return ResponseEntity.ok(Map.of(
                     "ok", true,
                     "id", save.id(),
